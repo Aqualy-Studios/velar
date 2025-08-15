@@ -88,6 +88,7 @@ interface NPC<W, P, I, E> : NPCFlaggedObject {
         val HIT_WHEN_PLAYER_HITS: NPCFlag<Boolean> = NPCFlag.flag("imitate_player_hit", false)
         val SNEAK_WHEN_PLAYER_SNEAKS: NPCFlag<Boolean> = NPCFlag.flag("imitate_player_sneak", false)
         val HIDE_NAME_TAG: NPCFlag<Boolean> = NPCFlag.flag("hide_name_tag", false)
+        val SWING_ON_UN_FOCUS: NPCFlag<Boolean> = NPCFlag.flag("swing_on_unfocus", false)
 
     }
 }

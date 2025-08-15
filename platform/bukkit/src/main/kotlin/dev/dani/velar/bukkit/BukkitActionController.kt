@@ -3,6 +3,7 @@ package dev.dani.velar.bukkit
 import dev.dani.velar.api.NPC.Companion.HIT_WHEN_PLAYER_HITS
 import dev.dani.velar.api.NPC.Companion.LOOK_AT_PLAYER
 import dev.dani.velar.api.NPC.Companion.SNEAK_WHEN_PLAYER_SNEAKS
+import dev.dani.velar.api.NPC.Companion.SWING_ON_UN_FOCUS
 import dev.dani.velar.api.NPCActionController
 import dev.dani.velar.api.NPCActionController.Companion.AUTO_SYNC_POSITION_ON_SPAWN
 import dev.dani.velar.api.NPCActionController.Companion.IMITATE_DISTANCE
@@ -37,6 +38,7 @@ import org.bukkit.event.player.PlayerToggleSneakEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 
 
 /*
@@ -54,6 +56,7 @@ class BukkitActionController(
 
     private val spawnDistance: Int
     private val imitateDistance: Int
+    private val imitatingPlayers = ConcurrentHashMap<UUID, MutableSet<Int>>()
 
     init {
 
@@ -123,6 +126,10 @@ class BukkitActionController(
                     continue
                 }
 
+                val activeImitations = imitatingPlayers.computeIfAbsent(player.uniqueId) { mutableSetOf() }
+
+                val npcUUID = npc.entityId
+
                 // check if the player moved in / out of any npc tracking distance
                 val distance = distance(npc, to)
                 if (distance > this.spawnDistance) {
@@ -135,11 +142,24 @@ class BukkitActionController(
                 }
 
                 // check if we should rotate the npc towards the player
-                if (changedPosition
-                    && npc.tracksPlayer(player)
-                    && distance <= this.imitateDistance && npc.flagValueOrDefault(LOOK_AT_PLAYER) == true
-                ) {
-                    npc.lookAt(to).schedule(player)
+                val canImitate = npc.tracksPlayer(player) && distance <= this.imitateDistance
+                if (canImitate) {
+                    if (npc.flagValueOrDefault(LOOK_AT_PLAYER) == true && changedPosition) {
+                        npc.lookAt(to).schedule(player)
+                    }
+
+                    if (!activeImitations.contains(npcUUID)) {
+                        // mark imitation started
+                        activeImitations.add(npcUUID)
+                    }
+                } else {
+                    // was imitating but now left range
+                    if (activeImitations.remove(npcUUID)) {
+                       if (npc.flagValueOrDefault(SWING_ON_UN_FOCUS) == true) {
+                           npc.platform.packetFactory.createAnimationPacket(EntityAnimation.SWING_MAIN_ARM)
+                               .schedule(player, npc)
+                       }
+                    }
                 }
             }
         }
