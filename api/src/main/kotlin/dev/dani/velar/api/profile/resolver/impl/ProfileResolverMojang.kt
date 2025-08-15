@@ -17,7 +17,7 @@ import java.lang.reflect.Type
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.regex.Pattern
 
@@ -41,7 +41,7 @@ object ProfileResolverMojang : ProfileResolver {
     private val UUID_NO_DASH_PATTERN = Pattern.compile("-", Pattern.LITERAL)
     private val UUID_DASHER_PATTERN = Pattern.compile("(\\w{8})(\\w{4})(\\w{4})(\\w{4})(\\w{12})")
 
-    private const val NAME_TO_UUID_ENDPOINT = "https://api.mojang.com/users/profiles/minecraft/%s"
+    private const val NAME_TO_UUID_ENDPOINT = "https://api.minecraftservices.com/minecraft/profile/lookup/name/%s"
     private const val UUID_TO_PROFILE_ENDPOINT = "https://sessionserver.mojang.com/session/minecraft/profile/%s?unsigned=false"
 
     private fun makeRequest(endpoint: String): JsonObject {
@@ -91,7 +91,8 @@ object ProfileResolverMojang : ProfileResolver {
         CompletableFuture.supplyAsync(wrap {
             var uniqueId = profile.uniqueId
             if (uniqueId == null) {
-                val responseData = makeRequest(NAME_TO_UUID_ENDPOINT.format(profile.name))
+                check(profile.name != null) { "either profile name or uuid must be given" }
+                val responseData: JsonObject = makeRequest(String.format(NAME_TO_UUID_ENDPOINT, profile.name!!.lowercase()))
                 val rawUniqueId = responseData["id"].asString
                 val dashedId = UUID_DASHER_PATTERN.matcher(rawUniqueId).replaceAll("$1-$2-$3-$4-$5")
                 uniqueId = UUID.fromString(dashedId)
